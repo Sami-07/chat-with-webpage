@@ -121,11 +121,50 @@ async function ingest(url: string) {
     }
 }
 
-async function chunkText(data: string, chunkSize: number): Promise<string[]> {
+async function chunkText(text: string, maxChunkSize: number): Promise<string[]> {
     const chunks: string[] = [];
-    for (let i = 0; i < data.length; i += chunkSize) {
-        chunks.push(data.slice(i, i + chunkSize));
+    let currentChunk = '';
+    let currentSize = 0;
+
+    // Split text into paragraphs first
+    const paragraphs = text.split(/\n\s*\n/);
+
+    for (const paragraph of paragraphs) {
+        // If adding this paragraph would exceed max size, start a new chunk
+        if (currentSize + paragraph.length > maxChunkSize && currentChunk !== '') {
+            chunks.push(currentChunk.trim());
+            currentChunk = '';
+            currentSize = 0;
+        }
+
+        // Split paragraph into sentences
+        const sentences = paragraph.split(/(?<=[.!?])\s+/);
+
+        for (const sentence of sentences) {
+            // If adding this sentence would exceed max size, start a new chunk
+            if (currentSize + sentence.length > maxChunkSize && currentChunk !== '') {
+                chunks.push(currentChunk.trim());
+                currentChunk = '';
+                currentSize = 0;
+            }
+
+            // Add sentence to current chunk
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+            currentSize += sentence.length;
+        }
+
+        // Add paragraph separator
+        if (currentChunk) {
+            currentChunk += '\n\n';
+            currentSize += 2;
+        }
     }
+
+    // Add the last chunk if it's not empty
+    if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+    }
+
     return chunks;
 }
 
